@@ -77,14 +77,14 @@ class Profiler {
     this.currentBlock = blockId;
   }
 
-  getN(block, variables){
-    if('LIST' in block.fields){
+  getN(block, variables) {
+    if ("LIST" in block.fields) {
       // if the block has a LIST field return the length of the list in that field
       return variables[block.fields.LIST.id].value.length;
-    }else if(block.inputs.length){
+    } else if (block.inputs.length) {
       // this block is almost certainly string contains but unfortunately there's no way to get the reported value of just the elements inside this string
       // instead we'll just pretend the reported string was length 10
-      return 10
+      return 10;
     }
     // something has gone wrong as all O(n) blocks have either a LIST field or an input field.
     // If 0 is returned, the RTC table is likely formatted wrong, and needs fixing.
@@ -111,7 +111,6 @@ class Profiler {
 
     // If RTC is given by two values in the table then the operation has O(n) time complexity and depends on the string/list length
     rtc = Array.isArray(rtc) ? rtc[1] + rtc[0] * this.getN(block, target.variables) : rtc;
-
 
     let ownRTC = block?.opcode && rtc && rtc != "N/A" ? rtc : 0;
     const childrenRTC =
