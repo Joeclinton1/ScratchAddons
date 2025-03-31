@@ -103,5 +103,5 @@
     "version": "1.38.0",
     "temporaryNotice": "Added timing blocks to help you with micro-optimisation of your project"
   },
-  "libraries": ["chartjs"]
+  "libraries": ["chartjs", "scratch-gui", "scratch-vm"]
 }
