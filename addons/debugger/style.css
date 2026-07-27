@@ -25,7 +25,7 @@
   position: absolute;
   z-index: 492;
   background-color: white;
-  width: 540px;
+  width: 640px;
   height: 25rem;
   resize: auto;
   min-width: 300px;
@@ -387,7 +387,7 @@
   box-sizing: border-box;
 }
 
-/* Tooltip container (the second item) */
+/* Operation cost information tooltip */
 .sa-timing-tooltip-container {
   position: relative;
   display: inline-block;
@@ -397,8 +397,10 @@
 .sa-timing-tooltip-outer {
   visibility: hidden;
   position: absolute;
-  transform: translate(-25%, 96px);
-  padding-top: 22px;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding-top: 12px;
   cursor: default;
 }
 

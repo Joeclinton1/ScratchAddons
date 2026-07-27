@@ -46,6 +46,9 @@ class TableRows extends LogView {
           : ((100 * timer.totalTime) / this.totalTimerTime).toFixed(2),
       callCount: timer.callCount,
     };
+    if (this.config.showRTC) {
+      rowValues.rtc = Math.round(timer.totalRTC / timer.callCount);
+    }
     return rowValues;
   }
 
@@ -71,9 +74,15 @@ class TableRows extends LogView {
       labelElem = createInfoElement(label);
     }
 
-    const { totalTime, avgTime, percent, callCount } = this.getRowValues(timer);
+    const { totalTime, avgTime, percent, callCount, rtc } = this.getRowValues(timer);
     const perSymbol = this.config.showRatioTime ? "" : "%";
-    const formattedValues = [`${totalTime} ms`, `${avgTime} ms`, `${percent} ${perSymbol}`, callCount];
+    const formattedValues = [
+      `${totalTime} ms`,
+      `${avgTime} ms`,
+      `${percent} ${perSymbol}`,
+      callCount,
+      ...(this.config.showRTC ? [rtc] : []),
+    ];
     const elements = [labelElem, ...formattedValues.map((v) => createInfoElement(v))];
     elements.forEach((elem) => root.appendChild(elem));
     return { root, ...elements };
@@ -102,6 +111,7 @@ class TableRows extends LogView {
     this.rows = this.rows.map((row) => ({
       ...row,
       avgTime: row.totalTime / row.callCount,
+      rtc: row.totalRTC / row.callCount,
     }));
     this.rows.sort((a, b) => (sortDirection === "ascending" ? 1 : -1) * (a[sortHeader] - b[sortHeader]));
   }

@@ -3,11 +3,64 @@ import HeatmapManager from "./HeatmapManager.js";
 import Profiler from "./Profiler.js";
 import { createTableHeader } from "./ui-components/tableHeader.js";
 import TableRows from "./ui-components/TableRows.js"; // Importing the extended LogView class
+import RTCTableComponent from "./ui-components/RTCTable.js";
 import { updateAllBlocksEvents } from "../../../libraries/common/cs/update-all-blocks.js";
 import downloadBlob from "../../../libraries/common/cs/download-blob.js";
 import { isPaused, onPauseChanged, getRunningThread } from "../module.js";
 
 export default async function createTimingTab({ debug, addon, console, msg }) {
+  function openRTCTablePopup() {
+    const popupWindow = window.open(
+      "",
+      "_blank",
+      "toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=800,height=600"
+    );
+    if (!popupWindow) return;
+
+    popupWindow.document.title = msg("timing-rtc");
+    Object.assign(popupWindow.document.body.style, {
+      margin: "0",
+      height: "100vh",
+      backgroundColor: "#f0f0f0",
+    });
+
+    const rtcTableContainer = Object.assign(popupWindow.document.createElement("div"), {
+      id: "rtcTableContainer",
+    });
+    Object.assign(rtcTableContainer.style, {
+      width: "100%",
+      height: "100%",
+      overflow: "auto",
+    });
+    popupWindow.document.body.appendChild(rtcTableContainer);
+
+    const style = popupWindow.document.createElement("style");
+    style.textContent = `
+      .sa-rtc-table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 0;
+        color: black;
+        font-family: sans-serif;
+        font-size: 12px;
+      }
+      .sa-rtc-table th, .sa-rtc-table td {
+        border: 1px solid #ccc;
+        text-align: center;
+        padding: 3px;
+        word-wrap: break-word;
+        white-space: normal;
+      }
+      .sa-rtc-table th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+      }
+    `;
+    popupWindow.document.head.appendChild(style);
+
+    new RTCTableComponent(addon.self.dir + "/timing/RTC.json").renderInto(rtcTableContainer);
+  }
+
   function createContent() {
     const content = Object.assign(document.createElement("div"), {
       className: "sa-timing-content",
@@ -49,12 +102,32 @@ export default async function createTimingTab({ debug, addon, console, msg }) {
       config.showLineByLine = checkbox.checked;
       if (config.showLineByLine && !config.isStepThreadPolluted) {
         polluteStepThread();
-      } else if (!config.showLineByLine && config.isStepThreadPolluted) {
+      } else if (!config.showLineByLine && !config.showRTC && config.isStepThreadPolluted) {
         unpolluteStepThread();
       }
     });
 
+    lineByLineButton.checkbox = checkbox;
     return lineByLineButton;
+  }
+
+  function attachOperationCostInfo(rtcHeader) {
+    rtcHeader.classList.add("sa-timing-tooltip-container");
+    const tooltip = document.createElement("div");
+    tooltip.className = "sa-timing-tooltip-outer";
+    tooltip.innerHTML = `
+      <div class="sa-timing-tooltip-content">
+        <p>${msg("timing-rtc-info", {
+          table: `<a href="#" class="sa-timing-rtc-table-link">${msg("timing-rtc-info-table")}</a>`,
+        })}</p>
+      </div>
+    `;
+    tooltip.addEventListener("click", (event) => event.stopPropagation());
+    tooltip.querySelector(".sa-timing-rtc-table-link").addEventListener("click", (event) => {
+      event.preventDefault();
+      openRTCTablePopup();
+    });
+    rtcHeader.appendChild(tooltip);
   }
 
   function createHeatmapButton() {
@@ -197,6 +270,7 @@ export default async function createTimingTab({ debug, addon, console, msg }) {
         "Avg Time (ms)",
         config.showRatioTime ? "Ratio Time" : "Percent Time",
         "Call Count",
+        ...(config.showRTC ? ["Operation Cost"] : []),
       ];
 
       // Create CSV rows
@@ -245,8 +319,32 @@ export default async function createTimingTab({ debug, addon, console, msg }) {
     percentHeader.textContent = value ? msg("timing-ratio-time") : msg("timing-percent-time");
   }
 
-  // config for our block scope settings that can be modified in the toolbar
+  function getOperationCostSetting() {
+    try {
+      return addon.settings.get("show_operation_cost");
+    } catch {
+      // The background page can briefly retain the old manifest during extension development.
+      return false;
+    }
+  }
+
+  function updateOperationCostSetting() {
+    config.showRTC = getOperationCostSetting();
+    rtcHeader.style.display = config.showRTC ? "" : "none";
+
+    const isSingleStepping = isPaused() && getRunningThread();
+    if (config.showRTC && !isSingleStepping && !config.isStepThreadPolluted) {
+      polluteStepThread();
+    } else if (!config.showRTC && !config.showLineByLine && config.isStepThreadPolluted) {
+      unpolluteStepThread();
+    }
+
+    tableRows.updateLogRows(timingManager.getTimers(), config.showLineByLine);
+  }
+
+  // Config shared by timing controls and addon settings.
   const config = {
+    showRTC: getOperationCostSetting(),
     showLineByLine: false,
     showHeatmap: false,
     showRatioTime: false,
@@ -255,10 +353,19 @@ export default async function createTimingTab({ debug, addon, console, msg }) {
     isStepThreadPolluted: false,
     currentHeatmapMax: 1.0, // Store heatmap max value for reapply operations
   };
-  const { tableHeader, percentHeader } = createTableHeader(config, msg);
+  const { tableHeader, rtcHeader, percentHeader } = createTableHeader(config, msg);
+  attachOperationCostInfo(rtcHeader);
   const tableRows = new TableRows(config, debug, msg, tableHeader);
 
   const profiler = new Profiler(config);
+  try {
+    const response = await fetch(addon.self.dir + "/timing/RTC.json");
+    profiler.rtcTable = await response.json();
+    profiler.clearRtcCache();
+  } catch (error) {
+    console.error("Error loading JSON:", error);
+  }
+
   // function to pollute stepThread with our new Profiler to handle line by line profiling
   const polluteStepThread = () => profiler.polluteStepThread(addon.tab.traps.vm, timingManager);
   const unpolluteStepThread = () => profiler.unpolluteStepThread();
@@ -289,7 +396,12 @@ export default async function createTimingTab({ debug, addon, console, msg }) {
     const isSingleStepping = paused && getRunningThread();
     if (isSingleStepping && config.showLineByLine) {
       config.showLineByLine = false;
+      lineByLineButton.checkbox.checked = false;
+    }
+    if (isSingleStepping && config.isStepThreadPolluted) {
       profiler.unpolluteStepThread();
+    } else if (!isSingleStepping && (config.showLineByLine || config.showRTC) && !config.isStepThreadPolluted) {
+      polluteStepThread();
     }
     // Update button disabled states
     lineByLineButton.element.disabled = isSingleStepping;
@@ -325,8 +437,10 @@ export default async function createTimingTab({ debug, addon, console, msg }) {
 
   addon.settings.addEventListener("change", function () {
     updatePercentageHeader();
+    updateOperationCostSetting();
   });
-  if (addon.settings.get("show_ratio_time") === true) updatePercentageHeader();
+  updatePercentageHeader();
+  updateOperationCostSetting();
 
   // create the tab
   const tab = debug.createHeaderTab({

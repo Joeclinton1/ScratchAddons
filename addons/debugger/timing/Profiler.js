@@ -1,8 +1,12 @@
 class Profiler {
   constructor(config) {
     this.currentBlock = null;
+    this.totalRTC = 0;
     this.thread = null;
+    this.originalStepThread;
     this.config = config;
+    this.rtcCache = new Map();
+    this.rtcTable = {};
     this.profilerActive = false;
     this.tm = null;
   }
@@ -74,6 +78,8 @@ class Profiler {
 
       return result;
     };
+
+    vm.runtime.on("PROJECT_CHANGED", () => profiler.clearRtcCache());
   }
 
   /*
@@ -109,7 +115,70 @@ class Profiler {
 
     if (this.config.showLineByLine && this.currentBlock !== null) this.tm.stopTimer(this.currentBlock);
 
+    if (this.config.showRTC)
+      this.totalRTC += this.getRTCofBlockLine(blockId, this.thread.blockContainer._blocks, this.thread.target);
+
     this.currentBlock = blockId;
+  }
+
+  getN(block, target) {
+    const listField = block.fields?.LIST;
+    if (listField) {
+      // lookupVariableById also finds global lists owned by the stage.
+      const variable =
+        (listField.id && target.lookupVariableById?.(listField.id)) ??
+        (listField.id && target.variables?.[listField.id]) ??
+        target.lookupVariableByNameAndType?.(listField.value, "list");
+      return Array.isArray(variable?.value) ? variable.value.length : 0;
+    } else if (Object.keys(block.inputs ?? {}).length) {
+      // this block is almost certainly string contains but unfortunately there's no way to get the reported value of just the elements inside this string
+      // instead we'll just pretend the reported string was length 10
+      return 10;
+    }
+    // something has gone wrong as all O(n) blocks have either a LIST field or an input field.
+    // If 0 is returned, the RTC table is likely formatted wrong, and needs fixing.
+    return 0;
+  }
+
+  getRTCofBlockLine(rootBlockId, blocks, target) {
+    if (this.rtcCache.has(rootBlockId)) {
+      return this.rtcCache.get(rootBlockId);
+    }
+    const block = blocks[rootBlockId];
+    if (block === undefined) return 0;
+    const inputs = Object.values(block.inputs);
+    const fields = Object.values(block.fields);
+    const fieldKeys = Object.keys(block.fields);
+    let field =
+      fields.length && ["EFFECT", "OPERATOR"].includes(fieldKeys[0]) ? ":" + fields[0].value.toLowerCase() : "";
+
+    if (block.opcode === "pen_stamp") {
+      // if the block is stamp then RTC depends on whether we are stamping bitmap or vector
+      field = target.sprite?.costumes?.[target.currentCostume]?.dataFormat === "svg" ? ":vector" : ":bitmap";
+    }
+    let rtc = this.rtcTable[block.opcode + field];
+
+    // If RTC is given by two values in the table then the operation has O(n) time complexity and depends on the string/list length
+    const inputDependent = Array.isArray(rtc);
+    rtc = inputDependent ? rtc[1] + rtc[0] * this.getN(block, target) : rtc;
+    const ownRTC = block.opcode && rtc && rtc !== "N/A" ? rtc : 0;
+    const childrenRTC =
+      inputs.length !== 0
+        ? inputs
+            .filter((input) => input?.block && !input.name?.includes("SUBSTACK"))
+            .map((input) => this.getRTCofBlockLine(input.block, blocks, target))
+            .reduce((acc, curr) => acc + curr, 0)
+        : 0;
+    const totalRTC = ownRTC + childrenRTC;
+
+    // If the RTC is independent of the input then it never changes and we can cache it
+    if (!inputDependent && block.opcode !== "pen_stamp") this.rtcCache.set(rootBlockId, totalRTC);
+
+    return totalRTC;
+  }
+
+  clearRtcCache() {
+    this.rtcCache.clear();
   }
 }
 

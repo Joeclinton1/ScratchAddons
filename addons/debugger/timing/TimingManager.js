@@ -24,6 +24,7 @@ class TimingManager {
     const currentTime = performance.now();
     if (this.timers[label]) {
       this.timers[label].startTime = currentTime;
+      this.timers[label].startRTC = this.dummyProfiler.totalRTC;
       this.timers[label].callCount += 1;
       this.timers[label].isActive = true;
       // Update display label in case it wasn't stored before
@@ -40,6 +41,8 @@ class TimingManager {
         idx: Object.keys(this.timers).length,
         isActive: true,
         displayLabel: isEmptyLabel ? "" : label, // Store the original label for display purposes
+        startRTC: this.dummyProfiler.totalRTC,
+        totalRTC: 0,
       };
     }
 
@@ -59,6 +62,14 @@ class TimingManager {
     const currentTime = performance.now();
     if (this.timers[label] && this.timers[label].isActive) {
       this.timers[label].totalTime += currentTime - this.timers[label].startTime;
+      if (this.config.showRTC) {
+        let rtcDifference = this.dummyProfiler.totalRTC - this.timers[label].startRTC;
+        const [rtcProcA, rtcProcB] = this.dummyProfiler.rtcTable["procedures_call"] ?? [0, 0];
+        // procedure calls are O(n) ops so their RTC is given by the formula An + B, where n is the number of procedure arguments
+        const rtcProc = rtcProcA * 1 + rtcProcB;
+        rtcDifference -= label !== this.timers[label].blockId ? rtcProc : 0;
+        this.timers[label].totalRTC += rtcDifference;
+      }
       this.timers[label].isActive = false;
 
       // Notify heatmap manager of timer modification for real-time updates

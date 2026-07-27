@@ -11,9 +11,11 @@ export function createTableHeader(config, msg) {
     { className: "timing-average-time", messageKey: "timing-average-time" },
     { className: "timing-percent-time", messageKey: "timing-percent-time" },
     { className: "timing-call-count", messageKey: "timing-call-count" },
+    { className: "timing-rtc", messageKey: "timing-rtc-short" },
   ];
 
   let percentHeader;
+  let rtcHeader;
   headerConfigs.forEach(({ className, messageKey }) => {
     const span = document.createElement("span");
     span.className = className;
@@ -22,6 +24,10 @@ export function createTableHeader(config, msg) {
 
     if (className === "timing-percent-time") {
       percentHeader = span;
+    }
+    if (className === "timing-rtc") {
+      rtcHeader = span;
+      rtcHeader.style.display = config.showRTC ? "" : "none";
     }
   });
 
@@ -32,6 +38,7 @@ export function createTableHeader(config, msg) {
     "timing-average-time": "avgTime",
     "timing-percent-time": "totalTime",
     "timing-call-count": "callCount",
+    "timing-rtc": "rtc",
   };
 
   tableHeader.querySelectorAll("span, a").forEach((headerElement) => {
@@ -50,5 +57,5 @@ export function createTableHeader(config, msg) {
     });
   });
 
-  return { tableHeader, percentHeader };
+  return { tableHeader, rtcHeader, percentHeader };
 }

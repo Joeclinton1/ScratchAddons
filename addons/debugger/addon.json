@@ -97,6 +97,13 @@
       "type": "boolean",
       "default": false,
       "description": "Replaces the percentage column with a ratio of each block’s total time to the smallest block’s total time."
+    },
+    {
+      "name": "Show Operation Cost",
+      "id": "show_operation_cost",
+      "type": "boolean",
+      "default": false,
+      "description": "Adds an Operation Cost column to the Timing tab. Operation Cost compares how expensive each operation is relative to subtraction."
     }
   ],
   "tags": ["editor", "codeEditor", "featured"],
