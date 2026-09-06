@@ -61,8 +61,9 @@ export function createControlsModule(
     [...state.brushButtons.children].forEach((btn) => (btn.dataset.selected = +btn.dataset.size === size));
 
   const setPixelMode = (enabled) => {
-    if (state.enabled === enabled) return;
     state.pixelModeDesired = enabled;
+    if (enabled && !canvasAdjuster.isReady()) return;
+    if (state.enabled === enabled) return;
     updatePixelModeState(enabled);
     if (enabled) {
       state.lastSafeSize = { width: state.pendingSize.width, height: state.pendingSize.height };
@@ -106,9 +107,10 @@ export function createControlsModule(
 
   const updatePixelModeVisibility = () => {
     if (!state.controlsGroup) return;
-    if (addon.self.disabled || !isCostumeEditorActive()) {
+    if (addon.self.disabled || !isCostumeEditorActive() || !canvasAdjuster.isReady()) {
       canvasAdjuster.disable();
       updatePixelModeState(false);
+      updateBrushControlVisibility();
       return;
     }
     const bitmap = isBitmap();

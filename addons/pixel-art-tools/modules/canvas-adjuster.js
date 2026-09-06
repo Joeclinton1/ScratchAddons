@@ -2,10 +2,13 @@ import { createFillContextClamp } from "./fill-context-clamp.js";
 import { eventTarget as paperColorEventTarget } from "../../editor-dark-mode/paper-color-events.js";
 
 export function createCanvasAdjuster(addon, paper) {
-  const getLayer = (key) => paper.project.layers.find((l) => l?.data?.[key]);
+  // Scratch removes the Paper project when the costume editor unmounts. VM and
+  // Redux events can still arrive before its replacement project is ready.
+  const getLayer = (key) => paper.project?.layers.find((l) => l?.data?.[key]);
   const getBgLayer = () => getLayer("isBackgroundGuideLayer");
   const getOutlineLayer = () => getLayer("isOutlineLayer");
   const getGuideLayer = () => getLayer("isGuideLayer");
+  const isReady = () => Boolean(getBgLayer()?.bitmapBackground && getOutlineLayer());
   const colorToCss = (color, fallback) => color?.toCSS?.(true) || color?.toCSS?.() || color || fallback;
   const getCanvasColors = () => {
     const bg = getBgLayer();
@@ -17,19 +20,26 @@ export function createCanvasAdjuster(addon, paper) {
     };
   };
 
+  let adjustedProject = null;
+  const clickHiderViews = new WeakSet();
   let originalBg = null,
     originalOutline = null,
     bgCenter = null,
     outlineCenter = null;
   let lastEnabledSize = null,
     lastChecker = null,
-    clickHiderAttached = false,
     gateInstalled = false,
     helpersHidden = false,
     paperColorListenerAttached = false,
     lastThemeSignature = null;
   const getAllowedRect = () => getOutlineLayer()?.data?.artboardRect || null;
   const fillContextClamp = createFillContextClamp(addon, paper, getAllowedRect);
+  const resetProjectCache = () => {
+    adjustedProject = null;
+    originalBg = originalOutline = bgCenter = outlineCenter = null;
+    lastEnabledSize = lastChecker = lastThemeSignature = null;
+    helpersHidden = false;
+  };
   const getThemeSignature = (colors) => `${colors.artboard}|${colors.checker}`;
   // Scratch can reorder Paper layers after editor actions like undo, so reassert
   // the pixel-mode layer order to keep the artboard border in front of the costume.
@@ -98,6 +108,7 @@ export function createCanvasAdjuster(addon, paper) {
     const view = paper?.view;
     if (!view) return;
     requestAnimationFrame(() => {
+      if (paper.view !== view || addon.self.disabled || !getAllowedRect()) return;
       const rect = view.element?.getBoundingClientRect?.();
       const [availW, availH] = [rect?.width || view.size?.width || 0, rect?.height || view.size?.height || 0];
       if (!availW || !availH) return;
@@ -177,13 +188,14 @@ export function createCanvasAdjuster(addon, paper) {
   }
 
   const installClickHider = () => {
-    if (clickHiderAttached) return;
-    clickHiderAttached = true;
+    const view = paper.view;
+    if (clickHiderViews.has(view)) return;
+    clickHiderViews.add(view);
     const setHelpers = (visible) =>
       getGuideLayer()?.children.forEach((ch) => ch?.data?.isHelperItem && (ch.visible = visible));
 
-    paper.view.on("mousedown", (e) => {
-      if (addon.self.disabled) return;
+    view.on("mousedown", (e) => {
+      if (addon.self.disabled || paper.view !== view) return;
       const rect = getAllowedRect();
       if (!rect || rect.contains(e.point)) {
         helpersHidden = false;
@@ -193,8 +205,8 @@ export function createCanvasAdjuster(addon, paper) {
       helpersHidden = true;
     });
 
-    paper.view.on("mouseup", () => {
-      if (addon.self.disabled || !helpersHidden) return;
+    view.on("mouseup", () => {
+      if (addon.self.disabled || paper.view !== view || !helpersHidden) return;
       helpersHidden = false;
       setHelpers(true);
     });
@@ -214,9 +226,13 @@ export function createCanvasAdjuster(addon, paper) {
   };
 
   const enable = (w, h, options = {}) => {
+    if (!isReady()) return;
+    if (paper.project !== adjustedProject) {
+      resetProjectCache();
+      adjustedProject = paper.project;
+    }
     fillContextClamp.enable();
     const bg = getBgLayer();
-    if (!bg?.bitmapBackground) return;
     originalBg ||= bg.bitmapBackground;
     bgCenter ||= originalBg.position.clone();
     const forceRebuild = options.forceRebuild;
@@ -279,6 +295,12 @@ export function createCanvasAdjuster(addon, paper) {
 
   const disable = () => {
     fillContextClamp.disable();
+    // Cached originals belong to one project only. Never restore them into a
+    // replacement project, including when no event arrived during unmount.
+    if (!paper.project || paper.project !== adjustedProject) {
+      resetProjectCache();
+      return;
+    }
     const bg = getBgLayer();
     if (bg && originalBg) {
       if (bg.bitmapBackground !== originalBg) bg.bitmapBackground.remove();
@@ -293,5 +315,5 @@ export function createCanvasAdjuster(addon, paper) {
     }
   };
 
-  return { enable, disable };
+  return { enable, disable, isReady };
 }
