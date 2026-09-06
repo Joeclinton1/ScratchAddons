@@ -302,7 +302,9 @@ export function createControlsModule(
           store.scratchGui.editorTab.activeTabIndex === 1 && !store.scratchGui.mode.isPlayerOnly,
       });
 
-      addon.tab.appendToSharedSpace({ space: "paintEditorZoomControls", element: wrapper, order: 1 });
+      // This space uses row-reverse: order 3 places pixel controls to the left
+      // of paint snapping (2) and onion skinning (1), regardless of load order.
+      addon.tab.appendToSharedSpace({ space: "paintEditorZoomControls", element: wrapper, order: 3 });
 
       const container = await addon.tab.waitForElement("[class*='mode-tools']");
       if (!container.contains(brushContainer)) container.appendChild(brushContainer);
