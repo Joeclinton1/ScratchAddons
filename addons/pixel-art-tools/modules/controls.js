@@ -54,8 +54,10 @@ export function createControlsModule(
     Object.assign(state.controlsGroup.dataset, { enabled });
     Object.assign(state.toggleButton.dataset, { active: enabled });
     state.toggleButton.setAttribute("aria-pressed", enabled);
-    state.palettePanel.style.display = enabled ? "block" : "none";
-    state.sizeControls.style.display = enabled ? "flex" : "none";
+    // displayNoneWhileDisabled handles the addon lifecycle; these classes handle
+    // pixel mode independently, including vector costumes and other editor tabs.
+    state.palettePanel.classList.toggle("sa-pixel-art-hidden", !enabled);
+    state.sizeControls.classList.toggle("sa-pixel-art-hidden", !enabled);
     animationPreview?.[enabled ? "show" : "hide"]();
   };
 
@@ -109,14 +111,13 @@ export function createControlsModule(
 
   const updatePixelModeVisibility = () => {
     if (!state.controlsGroup) return;
-    if (!isCostumeEditorActive()) {
+    if (addon.self.disabled || !isCostumeEditorActive()) {
       canvasAdjuster.disable();
       updatePixelModeState(false);
       return;
     }
     const bitmap = isBitmap();
-    state.controlsGroup.style.display = bitmap ? "flex" : "none";
-    state.toggleButton.style.display = bitmap ? "block" : "none";
+    state.controlsGroup.classList.toggle("sa-pixel-art-hidden", !bitmap);
 
     if (!bitmap && state.enabled) {
       updatePixelModeState(false);
@@ -177,6 +178,7 @@ export function createControlsModule(
       max: "1024",
       step: "2",
       value: state.pendingSize[dimension],
+      className: addon.tab.scratchClass("input_input-form", "input_input-small"),
     });
 
     const normalizeAndStore = () => {
@@ -237,15 +239,20 @@ export function createControlsModule(
   };
 
   const setupControls = async () => {
-    const wrapper = el("div", { className: "sa-pixel-art-controls" });
+    const wrapper = el("div", {
+      className: addon.tab.scratchClass("button-group_button-group", {
+        others: "sa-pixel-art-controls sa-pixel-art-hidden",
+      }),
+    });
     wrapper.dataset.enabled = false;
-    wrapper.style.display = "none";
     addon.tab.displayNoneWhileDisabled(wrapper);
 
     const toggleIcon = el("img", {
       src: `${addon.self.dir}/icons/pixel-mode.svg`,
       alt: "",
-      className: "sa-pixel-art-toggle-icon",
+      className: addon.tab.scratchClass("paint-editor_button-group-button-icon", {
+        others: "sa-pixel-art-toggle-icon",
+      }),
       draggable: false,
     });
     const toggle = el(
@@ -264,7 +271,7 @@ export function createControlsModule(
     toggle.onclick = () => setPixelMode(!state.enabled);
     toggle.setAttribute("aria-pressed", false);
 
-    const sizeDiv = el("div", { className: "sa-pixel-art-size", style: "display:none" });
+    const sizeDiv = el("div", { className: "sa-pixel-art-size sa-pixel-art-hidden" });
     const widthInput = createInput("width");
     const heightInput = createInput("height");
     sizeDiv.append(widthInput, el("span", {}, ["x"]), heightInput);
@@ -298,7 +305,6 @@ export function createControlsModule(
     updateBrushSelection(redux.state.scratchPaint?.bitBrushSize ?? 1);
     updateBrushControlVisibility();
 
-    let hasAppliedZoomClasses = false;
     while (true) {
       await addon.tab.waitForElement("[class*='paint-editor_zoom-controls_']", {
         markAsSeen: true,
@@ -312,17 +318,6 @@ export function createControlsModule(
       });
 
       addon.tab.appendToSharedSpace({ space: "paintEditorZoomControls", element: wrapper, order: 1 });
-
-      if (!hasAppliedZoomClasses) {
-        hasAppliedZoomClasses = true;
-        const zoomControls = await addon.tab.waitForElement("[class*='paint-editor_zoom-controls_']");
-        const groupClass = zoomControls?.firstChild?.className;
-        const buttonClass = zoomControls?.firstChild?.firstChild?.className;
-        const imageClass = zoomControls?.firstChild?.firstChild?.firstChild?.className;
-        if (groupClass) wrapper.classList.add(...groupClass.split(/\s+/).filter(Boolean));
-        if (buttonClass) toggle.classList.add(...buttonClass.split(/\s+/).filter(Boolean));
-        if (imageClass) toggleIcon.classList.add(...imageClass.split(/\s+/).filter(Boolean));
-      }
 
       const container = await addon.tab.waitForElement("[class*='mode-tools']");
       if (!container.contains(brushContainer)) container.appendChild(brushContainer);

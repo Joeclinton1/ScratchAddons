@@ -79,8 +79,7 @@ export function createPaletteModule(addon, state, redux, msg, console) {
   };
 
   const setupPalettePanel = async () => {
-    const panel = el("section", { className: "sa-pixel-art-palette" });
-    panel.style.display = "none";
+    const panel = el("section", { className: "sa-pixel-art-palette sa-pixel-art-hidden" });
     addon.tab.displayNoneWhileDisabled(panel);
 
     // Header (draggable when floating)

@@ -65,18 +65,8 @@
 }
 
 .sa-pixel-art-size input {
-  width: 3rem;
-  border: 1px solid var(--editorDarkMode-border, #e9eef2);
-  background: var(--editorDarkMode-input, #fff);
-  text-align: center;
-  font-size: 0.75rem;
   height: 1.95rem;
   padding: 0 0.1rem 0 0.5rem;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-weight: 700;
-  color: var(--editorDarkMode-input-text, #575e75);
-  color-scheme: var(--editorDarkMode-input-colorScheme, light);
-  border-radius: 2rem;
   box-sizing: border-box;
 }
 
@@ -591,19 +581,10 @@ body.sa-pixel-art-mode-active .sa-pixel-art-hide-when-pixel {
 
 .sa-pixel-art-animation-range input {
   width: 3.2rem;
+  height: 1.6rem;
   padding: 0.2rem 0.3rem;
-  border: 1px solid var(--editorDarkMode-border, rgba(0, 0, 0, 0.2));
-  background: var(--editorDarkMode-input, #fff);
-  color: var(--editorDarkMode-input-text, inherit);
-  color-scheme: var(--editorDarkMode-input-colorScheme, light);
   border-radius: 0.25rem;
   font-size: 0.7rem;
-}
-
-.sa-pixel-art-animation-range input:focus {
-  outline: none;
-  border-color: var(--editorDarkMode-primary, #4d97ff);
-  box-shadow: 0 0 0 2px var(--editorDarkMode-primary-transparent35, rgba(77, 151, 255, 0.2));
 }
 
 .sa-pixel-art-hidden {

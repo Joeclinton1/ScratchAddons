@@ -89,14 +89,6 @@ export default async function ({ addon, msg, console }) {
       controls.updatePixelModeVisibility();
     }
 
-    if (
-      detail.action.type === "scratch-gui/navigation/ACTIVATE_TAB" ||
-      detail.action.type === "scratch-gui/mode/SET_PLAYER" ||
-      detail.action.type === "scratch-paint/formats/CHANGE_FORMAT"
-    ) {
-      updateCompactEditorState();
-    }
-
     const prevColor = detail.prev.scratchPaint?.color?.fillColor?.primary;
     const nextColor = detail.next.scratchPaint?.color?.fillColor?.primary;
     if (prevColor !== nextColor) {

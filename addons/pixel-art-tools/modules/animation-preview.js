@@ -82,7 +82,7 @@ export function createAnimationPreview(addon, state, msg, console) {
   };
 
   const updatePreview = () => {
-    if (!panel || panel.style.display === "none") return;
+    if (!panel || addon.self.disabled || panel.classList.contains("sa-pixel-art-hidden")) return;
     const images = applyRange(getCostumeImages());
     if (!images.length) return;
     currentFrame = (currentFrame + 1) % images.length;
@@ -93,16 +93,22 @@ export function createAnimationPreview(addon, state, msg, console) {
   const startAnimation = () => (stopAnimation(), paused || (intervalId = setInterval(updatePreview, 1000 / fps)));
   const setFps = (v) => ((fps = Math.max(1, Math.min(60, v))), intervalId && startAnimation());
 
-  const show = () => panel && !hidden && ((panel.style.display = "block"), paused || startAnimation());
-  const hide = () => panel && ((panel.style.display = "none"), stopAnimation());
+  const show = () => {
+    if (!panel || hidden || addon.self.disabled || !state.enabled) return;
+    panel.classList.remove("sa-pixel-art-hidden");
+    if (!paused) startAnimation();
+  };
+  const hide = () => {
+    panel?.classList.add("sa-pixel-art-hidden");
+    stopAnimation();
+  };
 
   const setupPanel = async () => {
     // The preview floats underneath the palette when both are visible, so wait
     // for the palette panel to exist before computing the preview's position.
     if (state.palettePanelReady) await state.palettePanelReady;
 
-    panel = el("section", { className: "sa-pixel-art-animation" });
-    panel.style.display = state.enabled && !hidden ? "block" : "none";
+    panel = el("section", { className: "sa-pixel-art-animation sa-pixel-art-hidden" });
     addon.tab.displayNoneWhileDisabled(panel);
 
     // Header (draggable when floating)
@@ -112,7 +118,7 @@ export function createAnimationPreview(addon, state, msg, console) {
     // Preview image
     previewImg = el("img", {
       className: "sa-pixel-art-animation-preview",
-      alt: "Animation preview",
+      alt: msg("animationPreview"),
       onclick: exportGif,
     });
 
@@ -126,10 +132,7 @@ export function createAnimationPreview(addon, state, msg, console) {
     };
     updateToggle();
     toggleBtn.onclick = (e) => (
-      e.stopPropagation(),
-      (paused = !paused),
-      paused ? stopAnimation() : startAnimation(),
-      updateToggle()
+      e.stopPropagation(), (paused = !paused), paused ? stopAnimation() : startAnimation(), updateToggle()
     );
 
     // Export button
@@ -170,7 +173,13 @@ export function createAnimationPreview(addon, state, msg, console) {
 
     // Range controls
     const makeRangeInput = (setter) => {
-      const input = el("input", { type: "number", min: "1", step: "1", placeholder: "" });
+      const input = el("input", {
+        type: "number",
+        min: "1",
+        step: "1",
+        placeholder: "",
+        className: addon.tab.scratchClass("input_input-form", "input_input-small"),
+      });
       input.onchange = () => {
         const val = input.value.trim();
         setter(val === "" ? null : Math.max(1, Math.floor(+val || 0)));
@@ -216,7 +225,7 @@ export function createAnimationPreview(addon, state, msg, console) {
     panel.appendChild(rangeWrapper);
 
     state.animationPanel = panel;
-    if (state.enabled && !hidden) startAnimation();
+    show();
 
     // Floating position
     const updateFloat = () => {
@@ -236,7 +245,7 @@ export function createAnimationPreview(addon, state, msg, console) {
 
     while (true) {
       await addon.tab.waitForElement("[class*='paint-editor_mode-selector']", {
-        markAsSeen: false,
+        markAsSeen: true,
         reduxEvents: [
           "scratch-gui/navigation/ACTIVATE_TAB",
           "scratch-gui/targets/UPDATE_TARGET_LIST",

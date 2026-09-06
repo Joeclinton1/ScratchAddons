@@ -40,10 +40,7 @@ export default async function ({ addon, console }) {
     }
   };
   updateTooltips();
-  addon.settings.addEventListener("change", () => {
-    updateTooltips();
-    notifyCompactEditorState();
-  });
+  addon.settings.addEventListener("change", updateTooltips);
   addon.self.addEventListener("disabled", () => {
     updateTooltips();
     notifyCompactEditorState();
