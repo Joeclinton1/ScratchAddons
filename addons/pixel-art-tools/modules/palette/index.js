@@ -1,7 +1,7 @@
 import { createStorageModule } from "./storage.js";
 import { createUIModule } from "./ui.js";
-import { createImportExportModule } from "./import-export.js";
 import { bindFloatingPanel } from "../floating-panel.js";
+import { createElement as el } from "../create-element.js";
 
 /** @typedef {import("../types.js").PixelArtPalette} PixelArtPalette */
 /** @typedef {import("../types.js").PixelArtState} PixelArtState */
@@ -9,35 +9,21 @@ import { bindFloatingPanel } from "../floating-panel.js";
 /**
  * @param {PixelArtState} state
  */
-export function createPaletteModule(addon, state, redux, msg) {
+export function createPaletteModule(addon, state, redux, msg, console) {
   const vm = addon.tab.traps.vm;
   const runtime = vm.runtime;
 
-  const el = (tag, props = {}, children = []) => {
-    const e = Object.assign(document.createElement(tag), props);
-    children.forEach((c) => (typeof c === "string" ? (e.textContent = c) : e.appendChild(c)));
-    return e;
-  };
-
-  Object.assign(state, {
-    projectPalettes: state.projectPalettes || [],
-    selectedPaletteId: state.selectedPaletteId || null,
-    paletteDropdown: null,
-    teardownVmTargetsListener: null,
-  });
-
   let resolvePalettePanelReady;
-  state.palettePanelReady = state.palettePanelReady || new Promise((resolve) => (resolvePalettePanelReady = resolve));
+  state.palettePanelReady = new Promise((resolve) => (resolvePalettePanelReady = resolve));
 
-  const ui = createUIModule(addon, state, redux, msg, null, null);
+  const ui = createUIModule(addon, state, redux, msg, console);
   const storage = createStorageModule(addon, vm, runtime, msg, state, ui);
-  const importExport = createImportExportModule(state);
-  ui.setDependencies(storage, importExport);
+  ui.setStorage(storage);
 
   /** @returns {PixelArtPalette} */
   const createPalette = (name) => ({
     id: `pal-${storage.randomId()}`,
-    name: name || `${msg("paletteTitle") || "Palette"} ${state.projectPalettes.length + 1}`,
+    name: name || `${msg("paletteTitle")} ${state.projectPalettes.length + 1}`,
     colors: [],
   });
 

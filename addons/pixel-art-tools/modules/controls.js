@@ -1,3 +1,5 @@
+import { createElement as el } from "./create-element.js";
+
 const BRUSH_SIZES = [1, 2, 3, 4];
 
 /** @typedef {import("./types.js").PixelArtState} PixelArtState */
@@ -22,12 +24,6 @@ export function createControlsModule(
   let skipNextViewBounds = false;
   let onUpdateImageTimer = null;
   let sizeDirty = false;
-
-  const el = (tag, props = {}, children = []) => {
-    const e = Object.assign(document.createElement(tag), props);
-    children.forEach((c) => (typeof c === "string" ? (e.textContent = c) : e.appendChild(c)));
-    return e;
-  };
 
   const isBitmap = () => redux.state.scratchPaint?.format?.startsWith("BITMAP");
   const isCostumeEditorActive = () =>

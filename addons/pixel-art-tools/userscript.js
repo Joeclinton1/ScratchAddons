@@ -27,6 +27,11 @@ export default async function ({ addon, msg, console }) {
     enabled: false,
     pixelModeDesired: false,
     palette: [],
+    projectPalettes: [],
+    selectedPaletteId: null,
+    paletteDropdown: null,
+    palettePanelReady: null,
+    teardownVmTargetsListener: null,
     selectedPaletteIndex: -1,
     editingPaletteIndex: -1,
     pendingSize: { width: addon.settings.get("defaultWidth"), height: addon.settings.get("defaultHeight") },
@@ -39,6 +44,7 @@ export default async function ({ addon, msg, console }) {
     restoreSafeSizePending: false,
     brushButtons: null,
     controlsGroup: null,
+    sizeControls: null,
     palettePanel: null,
     paletteGrid: null,
     widthInput: null,
@@ -50,6 +56,7 @@ export default async function ({ addon, msg, console }) {
     paletteMessage: null,
     toggleButton: null,
     animationPanel: null,
+    updateImageActive: false,
   };
 
   const redux = addon.tab.redux;
@@ -59,8 +66,8 @@ export default async function ({ addon, msg, console }) {
 
   // Initialize modules
   const canvasAdjuster = createCanvasAdjuster(addon, paper);
-  const palette = createPaletteModule(addon, state, redux, msg);
-  const animationPreview = createAnimationPreview(addon, state, msg);
+  const palette = createPaletteModule(addon, state, redux, msg, console);
+  const animationPreview = createAnimationPreview(addon, state, msg, console);
   const controls = createControlsModule(addon, state, redux, msg, canvasAdjuster, palette, animationPreview, paper);
   const textToolScaler = createTextToolScaler(addon, paper);
   installRasterCropOverride(addon, state, paper);

@@ -1,3 +1,5 @@
+import { sanitizeHex } from "./normalize-color.js";
+
 const PALETTE_LIMIT = 64;
 const PROJECT_MAGIC = " // _pixel_art_palette_project";
 const COSTUME_MAGIC = " // _pixel_art_palette_costume";
@@ -19,6 +21,7 @@ export function createStorageModule(addon, vm, runtime, msg, state, ui) {
     }
   };
 
+  // The stage and editing target can be absent while a project is loading.
   const findComment = (target, magic, filter) =>
     Object.values(target?.comments || {}).find(
       (c) => c.text?.includes(magic) && (!filter || filter(parseComment(c.text, magic)))
@@ -34,11 +37,6 @@ export function createStorageModule(addon, vm, runtime, msg, state, ui) {
     runtime.emitProjectChanged();
   };
 
-  const sanitizeHex = (v) => {
-    const t = v?.toString().trim().replace(/^#/, "");
-    return /^[0-9a-f]{6}$/i.test(t) ? `#${t.toUpperCase()}` : null;
-  };
-
   const sanitizePalettes = (palettes) => {
     if (!Array.isArray(palettes)) return [];
     const seenIds = new Set();
@@ -48,7 +46,7 @@ export function createStorageModule(addon, vm, runtime, msg, state, ui) {
       seenIds.add(id);
       return {
         id,
-        name: name?.trim() || `${msg("paletteTitle") || "Palette"} ${i + 1}`,
+        name: name?.trim() || `${msg("paletteTitle")} ${i + 1}`,
         colors: Array.isArray(colors)
           ? [...new Set(colors.map(sanitizeHex).filter(Boolean))].slice(0, PALETTE_LIMIT)
           : [],
@@ -76,7 +74,7 @@ export function createStorageModule(addon, vm, runtime, msg, state, ui) {
     const mappings = {};
     // Keep the palette list project-wide on the stage, but store costume -> palette
     // mappings on each target so sprite-local costume names stay independent.
-    Object.values(target?.comments || {}).forEach((c) => {
+    Object.values(target.comments).forEach((c) => {
       if (!c.text?.includes(COSTUME_MAGIC)) return;
       const p = parseComment(c.text, COSTUME_MAGIC);
       if (p?.mappings) Object.assign(mappings, p.mappings);
@@ -89,7 +87,7 @@ export function createStorageModule(addon, vm, runtime, msg, state, ui) {
     writeComment(target, COSTUME_MAGIC, { mappings }, "Palette Mapping", [80, 80, 320, 100]);
 
   const getCostumeKey = (c) => c?.name || c?.md5Ext || c?.md5 || c?.assetId;
-  const getTarget = () => vm.editingTarget || runtime.getEditingTarget();
+  const getTarget = () => vm.editingTarget;
   const getCostume = (t) => t?.sprite?.costumes?.[t.currentCostume];
 
   const readCostumePaletteId = () => {
@@ -127,15 +125,15 @@ export function createStorageModule(addon, vm, runtime, msg, state, ui) {
       return;
 
     state.projectPalettes = state.projectPalettes.filter((e) => e.id !== p.id);
-    if (!state.projectPalettes.length)
+    if (state.projectPalettes.length === 0)
       state.projectPalettes.push({
         id: `pal-${randomId()}`,
-        name: `${msg("paletteTitle") || "Palette"} 1`,
+        name: `${msg("paletteTitle")} 1`,
         colors: [],
       });
     const fallbackId = state.projectPalettes[0].id;
 
-    for (const t of runtime.targets || []) {
+    for (const t of runtime.targets) {
       const m = loadMappings(t);
       let dirty = false;
       for (const k of Object.keys(m))

@@ -38,11 +38,11 @@
  * @property {HTMLElement | null} paletteMessage
  * @property {HTMLButtonElement | null} toggleButton
  * @property {HTMLElement | null} animationPanel
- * @property {PixelArtPalette[]} [projectPalettes]
- * @property {string | null} [selectedPaletteId]
- * @property {Promise<HTMLElement> | null} [palettePanelReady]
- * @property {(() => void) | null} [teardownVmTargetsListener]
- * @property {boolean} [updateImageActive]
+ * @property {PixelArtPalette[]} projectPalettes
+ * @property {string | null} selectedPaletteId
+ * @property {Promise<HTMLElement> | null} palettePanelReady
+ * @property {(() => void) | null} teardownVmTargetsListener
+ * @property {boolean} updateImageActive
  */
 
 export {};

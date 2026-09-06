@@ -4,6 +4,7 @@
   "pixel-art-tools/paletteTitle": "Palette",
   "pixel-art-tools/addColor": "Add Current Color",
   "pixel-art-tools/importPalette": "Import",
+  "pixel-art-tools/importFailed": "Palette import failed",
   "pixel-art-tools/exportPalette": "Export",
   "pixel-art-tools/paletteExportLabel": "Palette Exported From Pixel Art Tools",
   "pixel-art-tools/paletteFull": "Palette is full",

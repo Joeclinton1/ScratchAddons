@@ -1,11 +1,12 @@
 import { bindFloatingPanel } from "./floating-panel.js";
+import { createElement as el } from "./create-element.js";
 
 /** @typedef {import("./types.js").PixelArtState} PixelArtState */
 
 /**
  * @param {PixelArtState} state
  */
-export function createAnimationPreview(addon, state, msg) {
+export function createAnimationPreview(addon, state, msg, console) {
   let panel = null;
   let previewImg = null;
   let intervalId = null;
@@ -16,12 +17,6 @@ export function createAnimationPreview(addon, state, msg) {
   let hidden = addon.settings.get("hideAnimationPreview");
   let rangeStart = null;
   let rangeEnd = null;
-
-  const el = (tag, props = {}, children = []) => {
-    const e = Object.assign(document.createElement(tag), props);
-    children.forEach((c) => (typeof c === "string" ? (e.textContent = c) : e.appendChild(c)));
-    return e;
-  };
 
   let workerUrl;
   const getWorkerUrl = async () => {
@@ -81,7 +76,7 @@ export function createAnimationPreview(addon, state, msg) {
       gif.on("abort", () => (exporting = false));
       gif.render();
     } catch (e) {
-      console.warn("pixel-art-tools: GIF export failed", e);
+      console.warn("GIF export failed", e);
       exporting = false;
     }
   };
@@ -111,7 +106,7 @@ export function createAnimationPreview(addon, state, msg) {
     addon.tab.displayNoneWhileDisabled(panel);
 
     // Header (draggable when floating)
-    const header = el("header", { className: "sa-pixel-art-animation-header" }, [msg("animationPreview") || "Preview"]);
+    const header = el("header", { className: "sa-pixel-art-animation-header" }, [msg("animationPreview")]);
     panel.appendChild(header);
 
     // Preview image
@@ -126,13 +121,15 @@ export function createAnimationPreview(addon, state, msg) {
     const toggleBtn = el("button", { type: "button", className: "sa-pixel-art-animation-toggle" }, [toggleIcon]);
     const updateToggle = () => {
       toggleIcon.src = `${addon.self.dir}/icons/${paused ? "play" : "pause"}.svg`;
-      toggleBtn.title = toggleBtn.ariaLabel =
-        msg(paused ? "animationPlay" : "animationPause") || (paused ? "Play" : "Pause");
+      toggleBtn.title = toggleBtn.ariaLabel = msg(paused ? "animationPlay" : "animationPause");
       toggleBtn.dataset.paused = String(paused);
     };
     updateToggle();
     toggleBtn.onclick = (e) => (
-      e.stopPropagation(), (paused = !paused), paused ? stopAnimation() : startAnimation(), updateToggle()
+      e.stopPropagation(),
+      (paused = !paused),
+      paused ? stopAnimation() : startAnimation(),
+      updateToggle()
     );
 
     // Export button
@@ -143,7 +140,7 @@ export function createAnimationPreview(addon, state, msg) {
         className: "sa-pixel-art-animation-export",
         onclick: (e) => (e.stopPropagation(), exportGif()),
       },
-      [msg("animationExport") || "Export GIF"]
+      [msg("animationExport")]
     );
 
     const previewWrapper = el("div", { className: "sa-pixel-art-animation-preview-wrap" }, [
@@ -185,11 +182,11 @@ export function createAnimationPreview(addon, state, msg) {
     };
     const rangeRow = el("div", { className: "sa-pixel-art-animation-range", style: "display:none" }, [
       el("div", { className: "sa-pixel-art-animation-range-group" }, [
-        el("span", { className: "sa-pixel-art-animation-range-label" }, [msg("animationRangeStart") || "Start"]),
+        el("span", { className: "sa-pixel-art-animation-range-label" }, [msg("animationRangeStart")]),
         makeRangeInput((v) => (rangeStart = v)),
       ]),
       el("div", { className: "sa-pixel-art-animation-range-group" }, [
-        el("span", { className: "sa-pixel-art-animation-range-label" }, [msg("animationRangeEnd") || "End"]),
+        el("span", { className: "sa-pixel-art-animation-range-label" }, [msg("animationRangeEnd")]),
         makeRangeInput((v) => (rangeEnd = v)),
       ]),
     ]);
@@ -199,7 +196,7 @@ export function createAnimationPreview(addon, state, msg) {
         type: "button",
         className: "sa-pixel-art-animation-range-toggle",
         ariaExpanded: "false",
-        title: msg("animationRangeToggle") || "Animation Range",
+        title: msg("animationRangeToggle"),
       },
       [
         el("img", {

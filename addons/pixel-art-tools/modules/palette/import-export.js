@@ -133,15 +133,3 @@ export const createExportTXT = (state) => () => {
     URL.revokeObjectURL(url);
   }, 100);
 };
-
-/**
- * @param {PixelArtState} state
- */
-export function createImportExportModule(state) {
-  return {
-    parseGPL,
-    parseTXT,
-    parseImage,
-    exportTXT: createExportTXT(state),
-  };
-}
