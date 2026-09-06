@@ -169,15 +169,17 @@ export function createPaletteModule(addon, state, redux, msg, console) {
   };
 
   // Update palette mappings when costumes are renamed
-  const RenderedTarget = (vm.editingTarget || runtime.targets?.[0])?.constructor;
-  if (RenderedTarget?.prototype.renameCostume) {
-    const original = RenderedTarget.prototype.renameCostume;
-    RenderedTarget.prototype.renameCostume = function (costumeIndex, newName) {
+  const installRenameHook = () => {
+    const targetPrototype = runtime.getTargetForStage().constructor.prototype;
+    const original = targetPrototype.renameCostume;
+    targetPrototype.renameCostume = function (costumeIndex, newName) {
       const oldName = this.getCostumes()[costumeIndex]?.name;
       original.call(this, costumeIndex, newName);
       if (!addon.self.disabled) storage.renameCostumeMapping(this, oldName, this.getCostumes()[costumeIndex]?.name);
     };
-  }
+  };
+  if (runtime.getTargetForStage()) installRenameHook();
+  else runtime.once("PROJECT_LOADED", installRenameHook);
 
   addon.self.addEventListener("disabled", () => state.teardownVmTargetsListener?.());
   addon.self.addEventListener("reenabled", () => {

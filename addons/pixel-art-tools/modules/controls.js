@@ -17,12 +17,7 @@ export function createControlsModule(
   animationPreview,
   paper = null
 ) {
-  let lastUserSizeChangeAt = 0;
   let lastCostumeKey = null;
-  // A manual size commit triggers Scratch's own update-image/view-bounds pass.
-  // Ignore the next visibility-driven resize so we do not immediately fight it.
-  let skipNextViewBounds = false;
-  let onUpdateImageTimer = null;
   let sizeDirty = false;
 
   const isBitmap = () => redux.state.scratchPaint?.format?.startsWith("BITMAP");
@@ -33,18 +28,19 @@ export function createControlsModule(
   // from the real bitmap dimensions and notice when Scratch has switched costumes.
   const getCostumeInfo = () => {
     const vm = addon.tab.traps.vm;
-    const target = vm.editingTarget || vm.runtime.getEditingTarget();
+    // There may be no editing target while a project is loading or being replaced.
+    const target = vm.editingTarget;
     const targetId = target?.id || null;
     const costumeIndex = target?.currentCostume ?? null;
     const costume = target?.sprite?.costumes?.[target.currentCostume];
-    if (!costume) return { key: null, size: null };
+    if (!costume?.size) return { key: null, size: null };
     // Scratch reports resolution-1 bitmaps at half the pixel dimensions we want
     // to use as the pixel-mode canvas baseline, so normalize them here.
     const mul = costume.bitmapResolution === 1 ? 2 : 1;
     const size = { width: Math.round(costume.size[0] * mul), height: Math.round(costume.size[1] * mul) };
     // Treat the active costume as changed if Scratch switches slots or replaces
     // the underlying asset in-place without moving it in the costume list.
-    const key = `${targetId}:${costumeIndex}:${costume.md5 || costume.md5ext || ""}`;
+    const key = `${targetId}:${costumeIndex}:${costume.md5}:${size.width}:${size.height}`;
     return { key, size };
   };
 
@@ -96,8 +92,7 @@ export function createControlsModule(
     }
   };
 
-  const computeDesiredSize = () => {
-    const { size } = getCostumeInfo();
+  const computeDesiredSize = (size) => {
     return size
       ? { width: Math.max(1, size.width), height: Math.max(1, size.height) }
       : { width: addon.settings.get("defaultWidth"), height: addon.settings.get("defaultHeight") };
@@ -133,36 +128,30 @@ export function createControlsModule(
         canvasAdjuster.enable(width, height);
       }
     } else if (bitmap) {
-      const { key } = getCostumeInfo();
-      const desired = computeDesiredSize();
+      const { key, size } = getCostumeInfo();
+      const desired = computeDesiredSize(size);
 
-      // This grace window was tuned to be just long enough to stop the next
-      // automatic costume-size sync from immediately undoing a manual resize,
-      // without adding noticeable lag to normal syncing.
-      const recentlyUserChanged = Date.now() - lastUserSizeChangeAt < 600;
+      // UPDATE_VIEW_BOUNDS runs before the VM finishes encoding the bitmap.
+      // Only sync when the costume data changes, not on every view update with
+      // the old dimensions. targetsUpdate notifies us when encoding completes,
+      // regardless of image size or device speed.
       const costumeChanged = key && key !== lastCostumeKey;
-      const desiredDiffers = desired.width !== state.pendingSize.width || desired.height !== state.pendingSize.height;
 
       if (state.pixelModeDesired && !state.enabled) {
-        applySizeToInputs(desired.width, desired.height);
+        if (costumeChanged) {
+          applySizeToInputs(desired.width, desired.height);
+          sizeDirty = false;
+        }
         lastCostumeKey = key;
         setPixelMode(true);
         return;
       }
 
-      if (state.enabled && skipNextViewBounds) {
-        skipNextViewBounds = false;
-        if (key) lastCostumeKey = key;
-        canvasAdjuster.enable(state.pendingSize.width, state.pendingSize.height);
-        return;
-      }
-
-      if (costumeChanged || (!recentlyUserChanged && desiredDiffers)) {
+      if (costumeChanged) {
         applySizeToInputs(desired.width, desired.height);
-        lastCostumeKey = key;
-      } else if (key) {
-        lastCostumeKey = key;
+        sizeDirty = false;
       }
+      lastCostumeKey = key;
 
       if (state.enabled) {
         canvasAdjuster.enable(state.pendingSize.width, state.pendingSize.height);
@@ -207,20 +196,14 @@ export function createControlsModule(
       if (state.enabled && isBitmap() && value % 2 === 1) value = Math.min(1024, value + 1);
       state.pendingSize[dimension] = value;
       input.value = value;
-      lastUserSizeChangeAt = Date.now();
+      lastCostumeKey = getCostumeInfo().key;
       if (state.enabled) {
         canvasAdjuster.enable(state.pendingSize.width, state.pendingSize.height);
         state.lastSafeSize = { width: state.pendingSize.width, height: state.pendingSize.height };
         if (isBitmap() && typeof paper?.tool?.onUpdateImage === "function") {
-          skipNextViewBounds = true;
-          if (onUpdateImageTimer) clearTimeout(onUpdateImageTimer);
-          onUpdateImageTimer = setTimeout(() => {
-            onUpdateImageTimer = null;
-            try {
-              // Let Scratch commit the resize through its normal bitmap update path.
-              paper.tool.onUpdateImage();
-            } catch {}
-          }, 0);
+          // Capture the current costume immediately; deferring this could commit
+          // the resize to a different costume if the user switches in the meantime.
+          paper.tool.onUpdateImage();
         }
       }
     };

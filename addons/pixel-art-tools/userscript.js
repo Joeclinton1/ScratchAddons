@@ -131,6 +131,7 @@ export default async function ({ addon, msg, console }) {
   compactEditorEventTarget.addEventListener("change", updateCompactEditorState);
   updateCompactEditorState();
   controls.setupControls();
+  vm.on("targetsUpdate", controls.updatePixelModeVisibility);
   palette.setupPalettePanel();
   palette.updatePaletteSelection();
   animationPreview.setupPanel();

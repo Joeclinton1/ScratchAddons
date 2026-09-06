@@ -213,13 +213,13 @@ export function createCanvasAdjuster(addon, paper) {
     });
   };
 
-  const enable = (w, h, options = null) => {
+  const enable = (w, h, options = {}) => {
     fillContextClamp.enable();
     const bg = getBgLayer();
     if (!bg?.bitmapBackground) return;
     originalBg ||= bg.bitmapBackground;
     bgCenter ||= originalBg.position.clone();
-    const forceRebuild = options?.forceRebuild;
+    const forceRebuild = options.forceRebuild;
 
     const ol = getOutlineLayer();
     // Reuse the existing checker/outline when the artboard size and backing
@@ -235,7 +235,7 @@ export function createCanvasAdjuster(addon, paper) {
       ensureLayerOrder();
       installToolGate();
       installClickHider();
-      if (options?.fitView) fitViewToArtboard(w, h);
+      if (options.fitView) fitViewToArtboard(w, h);
       return;
     }
 
@@ -274,7 +274,7 @@ export function createCanvasAdjuster(addon, paper) {
     installToolGate();
     installClickHider();
     installPaperColorListener();
-    if (options?.fitView) fitViewToArtboard(w, h);
+    if (options.fitView) fitViewToArtboard(w, h);
   };
 
   const disable = () => {
