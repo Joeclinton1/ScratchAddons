@@ -328,6 +328,7 @@ export function createControlsModule(
     document.body.classList.remove("sa-pixel-art-mode-active");
   };
   const handleReenabled = () => {
+    state.pixelModeDesired = addon.settings.get("enableByDefault");
     updatePixelModeState(false);
     canvasAdjuster.disable();
     updateBrushControlVisibility();

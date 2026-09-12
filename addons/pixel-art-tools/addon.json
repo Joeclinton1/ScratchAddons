@@ -1,6 +1,6 @@
 {
   "name": "Pixel art tools",
-  "description": "Adds pixel art focused tools and options to the bitmap costume editor, including a palette, pixel mode, pixel-sized canvas, and brush tweaks.",
+  "description": "Adds pixel art focused tools and options to the bitmap costume editor, including a color palette, pixel-sized canvas, and brush tweaks.",
   "tags": ["editor", "costumeEditor"],
   "versionAdded": "1.45.0",
   "info": [
@@ -11,15 +11,19 @@
     },
     {
       "type": "notice",
-      "text": "Imported costumes will be half their original size. Use \"set size to 200%\" in your project to display them at full size.",
+      "text": "Imported costumes will be half their original size. Use the Looks block \"set size to 200%\" in your sprite's code to display them at full size.",
       "id": "importedCostumeSize"
+    },
+    {
+      "type": "info",
+      "text": "To start new painted costumes at your default width and height, enable \"New paint costumes are bitmap by default\". Converting an empty vector costume to bitmap starts with a 1 by 1 canvas instead.",
+      "id": "newCostumeSize"
     }
   ],
   "userscripts": [
     {
       "matches": ["projects"],
-      "url": "userscript.js",
-      "runAtComplete": true
+      "url": "userscript.js"
     }
   ],
   "userstyles": [

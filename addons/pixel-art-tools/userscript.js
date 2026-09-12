@@ -26,7 +26,7 @@ export default async function ({ addon, msg, console }) {
   /** @type {PixelArtState} */
   const state = {
     enabled: false,
-    pixelModeDesired: false,
+    pixelModeDesired: addon.settings.get("enableByDefault"),
     palette: [],
     projectPalettes: [],
     selectedPaletteId: null,
