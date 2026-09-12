@@ -1,6 +1,7 @@
 import { createElement as el } from "../create-element.js";
 import { createExportTXT, parseGPL, parseTXT, parseImage } from "./import-export.js";
 import { sanitizeHex } from "./normalize-color.js";
+import { createPaletteHistory } from "./history.js";
 
 const PALETTE_LIMIT = 64;
 
@@ -14,6 +15,29 @@ export function createUIModule(addon, state, redux, msg, console) {
   const setStorage = (storageModule) => {
     storage = storageModule;
   };
+
+  const history = createPaletteHistory(
+    addon,
+    state,
+    redux,
+    (paletteId, colors) => {
+      const palette = state.projectPalettes.find((p) => p.id === paletteId);
+      if (!palette) return;
+      palette.colors = colors.slice();
+      Object.assign(state, {
+        selectedPaletteId: paletteId,
+        palette: palette.colors,
+        editingPaletteIndex: -1,
+        selectedPaletteIndex: -1,
+      });
+      renderSelector();
+      renderPalette();
+      updatePaletteSelection();
+      storage.writeProjectComment(state.projectPalettes);
+      storage.writeCostumePaletteId(paletteId);
+    },
+    () => addPaletteColor(null, { silent: true })
+  );
 
   // Scratch can return RGB colors after selecting artwork or using the eyedropper.
   // Keep stored/imported palettes strictly hex, but normalize paint colors first.
@@ -99,6 +123,7 @@ export function createUIModule(addon, state, redux, msg, console) {
       });
 
       button.onclick = (e) => {
+        history.endEdit();
         if (e.shiftKey) {
           state.editingPaletteIndex = state.editingPaletteIndex === index ? -1 : index;
           state.paletteGrid
@@ -112,7 +137,9 @@ export function createUIModule(addon, state, redux, msg, console) {
       button.oncontextmenu = (e) => {
         e.preventDefault();
         if (!palette) return;
+        const before = palette.colors.slice();
         palette.colors.splice(index, 1);
+        history.record(palette, before);
         state.editingPaletteIndex = state.selectedPaletteIndex = -1;
         renderPalette();
         updatePaletteSelection();
@@ -154,7 +181,9 @@ export function createUIModule(addon, state, redux, msg, console) {
       return;
     }
 
+    const before = palette.colors.slice();
     palette.colors.push(normalized);
+    history.record(palette, before, { drawing: silent });
     state.selectedPaletteIndex = palette.colors.length - 1;
     renderPalette();
     updatePaletteSelection(normalized);
@@ -166,13 +195,16 @@ export function createUIModule(addon, state, redux, msg, console) {
     const palette = state.projectPalettes.find((p) => p.id === state.selectedPaletteId);
     const normalized = normalizeFillColor(newHex);
     if (!palette || state.editingPaletteIndex < 0 || !normalized) return;
+    if (palette.colors[state.editingPaletteIndex] === normalized) return;
 
     if (palette.colors.includes(normalized)) {
       showPaletteMessage(msg("colorAlreadyExists"), "info");
       return;
     }
 
+    const before = palette.colors.slice();
     palette.colors[state.editingPaletteIndex] = normalized;
+    history.record(palette, before, { editIndex: state.editingPaletteIndex });
     renderPalette();
     updatePaletteSelection(normalized);
     storage.writeProjectComment(state.projectPalettes);
