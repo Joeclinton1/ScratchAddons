@@ -16,7 +16,7 @@
     },
     {
       "type": "info",
-      "text": "To start new painted costumes at your default width and height, enable \"New paint costumes are bitmap by default\". Converting an empty vector costume to bitmap starts with a 1 by 1 canvas instead.",
+      "text": "Enable \"New paint costumes are bitmap by default\" to start new costumes at your default width and height.",
       "id": "newCostumeSize"
     }
   ],
