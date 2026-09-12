@@ -291,7 +291,7 @@ export function createControlsModule(
     updateBrushControlVisibility();
 
     while (true) {
-      await addon.tab.waitForElement("[class*='paint-editor_zoom-controls_']", {
+      const zoomControls = await addon.tab.waitForElement("[class*='paint-editor_zoom-controls_']", {
         markAsSeen: true,
         reduxEvents: [
           "scratch-gui/navigation/ACTIVATE_TAB",
@@ -300,6 +300,13 @@ export function createControlsModule(
         ],
         reduxCondition: (store) =>
           store.scratchGui.editorTab.activeTabIndex === 1 && !store.scratchGui.mode.isPlayerOnly,
+      });
+
+      const resetButton = zoomControls.querySelectorAll("[class*='paint-editor_button-group-button_']")[1];
+      resetButton.addEventListener("click", () => {
+        if (addon.self.disabled || !state.enabled) return;
+        // Fit on the next frame, after Scratch's own reset and selection updates.
+        canvasAdjuster.enable(state.pendingSize.width, state.pendingSize.height, { fitView: true });
       });
 
       // This space uses row-reverse: order 3 places pixel controls to the left

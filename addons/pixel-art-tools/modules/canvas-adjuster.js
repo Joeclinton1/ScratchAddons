@@ -117,6 +117,7 @@ export function createCanvasAdjuster(addon, paper) {
         view.zoom = zoom;
         if (outlineCenter) view.center = outlineCenter.clone();
         view.update?.();
+        addon.tab.redux.dispatch({ type: "scratch-paint/view/UPDATE_VIEW_BOUNDS", viewBounds: view.matrix.clone() });
       }
     });
   };
