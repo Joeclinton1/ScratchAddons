@@ -22,6 +22,7 @@ export function createUIModule(addon, state, redux, msg, console) {
     redux,
     (paletteId, colors) => {
       const palette = state.projectPalettes.find((p) => p.id === paletteId);
+      // Deleting a whole palette is outside swatch undo history.
       if (!palette) return;
       palette.colors = colors.slice();
       Object.assign(state, {
@@ -36,16 +37,15 @@ export function createUIModule(addon, state, redux, msg, console) {
       storage.writeProjectComment(state.projectPalettes);
       storage.writeCostumePaletteId(paletteId);
     },
-    () => addPaletteColor(null, { silent: true })
+    () => addPaletteColor({ silent: true })
   );
 
-  // Scratch can return RGB colors after selecting artwork or using the eyedropper.
-  // Keep stored/imported palettes strictly hex, but normalize paint colors first.
+  // Editable bitmap shapes and text supply RGB colors through Scratch's selection
+  // reducer. This listener also receives the mixed-color sentinel in vector mode.
   const normalizeFillColor = (value) => {
-    const color = tinycolor(value);
-    return color.isValid() && color.getAlpha() > 0 ? color.toHexString().toUpperCase() : null;
+    if (value === null || value === "scratch-paint/style-path/mixed") return null;
+    return tinycolor(value).toHexString().toUpperCase();
   };
-  const getFillHex = () => normalizeFillColor(redux.state.scratchPaint?.color?.fillColor?.primary);
 
   const setFillHex = (hex) => {
     const normalized = sanitizeHex(hex);
@@ -54,8 +54,8 @@ export function createUIModule(addon, state, redux, msg, console) {
     redux.dispatch({ type: "scratch-paint/fill-style/CHANGE_FILL_GRADIENT_TYPE", gradientType: "SOLID" });
   };
 
-  const updatePaletteSelection = (hex) => {
-    const target = hex === undefined ? getFillHex() : normalizeFillColor(hex);
+  const updatePaletteSelection = (hex = redux.state.scratchPaint.color.fillColor.primary) => {
+    const target = normalizeFillColor(hex);
     const selectedIndex = target ? state.palette.findIndex((c) => c === target) : -1;
     state.selectedPaletteIndex = selectedIndex;
     state.paletteGrid?.querySelectorAll(".sa-pixel-art-color[data-index]").forEach((button) => {
@@ -136,7 +136,6 @@ export function createUIModule(addon, state, redux, msg, console) {
 
       button.oncontextmenu = (e) => {
         e.preventDefault();
-        if (!palette) return;
         const before = palette.colors.slice();
         palette.colors.splice(index, 1);
         history.record(palette, before);
@@ -161,10 +160,9 @@ export function createUIModule(addon, state, redux, msg, console) {
     if (state.paletteNotice) state.paletteNotice.hidden = colors.length > 0;
   };
 
-  const addPaletteColor = (hex, { silent = false } = {}) => {
+  const addPaletteColor = ({ silent = false } = {}) => {
     const palette = state.projectPalettes.find((p) => p.id === state.selectedPaletteId);
-    const normalized = hex === undefined || hex === null ? getFillHex() : normalizeFillColor(hex);
-    if (!palette) return;
+    const normalized = normalizeFillColor(redux.state.scratchPaint.color.fillColor.primary);
     if (!normalized) {
       if (!silent) showPaletteMessage(msg("selectColorToAdd"), "info");
       return;
@@ -194,7 +192,7 @@ export function createUIModule(addon, state, redux, msg, console) {
   const updatePaletteColorFromFill = (newHex) => {
     const palette = state.projectPalettes.find((p) => p.id === state.selectedPaletteId);
     const normalized = normalizeFillColor(newHex);
-    if (!palette || state.editingPaletteIndex < 0 || !normalized) return;
+    if (!normalized) return;
     if (palette.colors[state.editingPaletteIndex] === normalized) return;
 
     if (palette.colors.includes(normalized)) {
@@ -204,7 +202,7 @@ export function createUIModule(addon, state, redux, msg, console) {
 
     const before = palette.colors.slice();
     palette.colors[state.editingPaletteIndex] = normalized;
-    history.record(palette, before, { editIndex: state.editingPaletteIndex });
+    history.record(palette, before, { editing: true });
     renderPalette();
     updatePaletteSelection(normalized);
     storage.writeProjectComment(state.projectPalettes);
@@ -304,7 +302,6 @@ export function createUIModule(addon, state, redux, msg, console) {
     updatePaletteSelection,
     renderPalette,
     renderSelector,
-    addPaletteColor,
     updatePaletteColorFromFill,
     showPaletteMessage,
     createImportInput,

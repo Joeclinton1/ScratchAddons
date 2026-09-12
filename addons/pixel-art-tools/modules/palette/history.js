@@ -18,9 +18,9 @@ export function createPaletteHistory(addon, state, redux, restore, addDrawingCol
   addon.self.addEventListener("disabled", clear);
 
   redux.addEventListener("statechanged", ({ detail: { action, prev, next } }) => {
-    const before = prev?.scratchPaint?.undo;
-    const after = next?.scratchPaint?.undo;
-    if (addon.self.disabled || !before || !after || before === after) return;
+    const before = prev.scratchPaint.undo;
+    const after = next.scratchPaint.undo;
+    if (addon.self.disabled || before === after) return;
     if (action.type === "scratch-paint/undo/CLEAR") return clear();
     if (action.type === "scratch-paint/undo/SNAPSHOT") {
       endEdit();
@@ -43,25 +43,20 @@ export function createPaletteHistory(addon, state, redux, restore, addDrawingCol
     if (change) restore(change.paletteId, undo ? change.before : change.after);
   });
 
-  const record = (palette, before, { editIndex = -1, drawing = false } = {}) => {
-    const undo = redux.state.scratchPaint?.undo;
-    const current = undo?.stack[undo.pointer];
+  const record = (palette, before, { editing = false, drawing = false } = {}) => {
+    const undo = redux.state.scratchPaint.undo;
+    const current = undo.stack[undo.pointer];
+    // Scratch clears its history while loading another costume.
     if (addon.self.disabled || !current) return;
-    const previous = changes.get(current);
     // A continuous swatch edit is one step until another action or swatch click.
-    if (
-      editIndex >= 0 &&
-      current === editSnapshot &&
-      previous?.paletteId === palette.id &&
-      previous.editIndex === editIndex
-    ) {
-      previous.after = palette.colors.slice();
+    if (editing && current === editSnapshot) {
+      changes.get(current).after = palette.colors.slice();
       return;
     }
     const snapshot = drawing ? current : { ...current };
-    changes.set(snapshot, { paletteId: palette.id, before, after: palette.colors.slice(), editIndex });
+    changes.set(snapshot, { paletteId: palette.id, before, after: palette.colors.slice() });
     if (!drawing) redux.dispatch({ type: "scratch-paint/undo/SNAPSHOT", snapshot });
-    editSnapshot = editIndex >= 0 ? snapshot : null;
+    editSnapshot = editing ? snapshot : null;
   };
 
   return { record, endEdit };

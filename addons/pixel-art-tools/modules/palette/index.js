@@ -192,7 +192,6 @@ export function createPaletteModule(addon, state, redux, msg, console) {
   return {
     updatePaletteSelection: ui.updatePaletteSelection,
     renderPalette: ui.renderPalette,
-    addPaletteColor: ui.addPaletteColor,
     setupPalettePanel,
     updatePaletteColorFromFill: ui.updatePaletteColorFromFill,
   };
