@@ -15,7 +15,13 @@ export function createUIModule(addon, state, redux, msg, console) {
     storage = storageModule;
   };
 
-  const getFillHex = () => sanitizeHex(redux.state.scratchPaint?.color?.fillColor?.primary);
+  // Scratch can return RGB colors after selecting artwork or using the eyedropper.
+  // Keep stored/imported palettes strictly hex, but normalize paint colors first.
+  const normalizeFillColor = (value) => {
+    const color = tinycolor(value);
+    return color.isValid() && color.getAlpha() > 0 ? color.toHexString().toUpperCase() : null;
+  };
+  const getFillHex = () => normalizeFillColor(redux.state.scratchPaint?.color?.fillColor?.primary);
 
   const setFillHex = (hex) => {
     const normalized = sanitizeHex(hex);
@@ -25,7 +31,7 @@ export function createUIModule(addon, state, redux, msg, console) {
   };
 
   const updatePaletteSelection = (hex) => {
-    const target = sanitizeHex(hex || getFillHex());
+    const target = hex === undefined ? getFillHex() : normalizeFillColor(hex);
     const selectedIndex = target ? state.palette.findIndex((c) => c === target) : -1;
     state.selectedPaletteIndex = selectedIndex;
     state.paletteGrid?.querySelectorAll(".sa-pixel-art-color[data-index]").forEach((button) => {
@@ -130,8 +136,12 @@ export function createUIModule(addon, state, redux, msg, console) {
 
   const addPaletteColor = (hex, { silent = false } = {}) => {
     const palette = state.projectPalettes.find((p) => p.id === state.selectedPaletteId);
-    const normalized = sanitizeHex(hex || getFillHex());
-    if (!palette || !normalized) return;
+    const normalized = hex === undefined || hex === null ? getFillHex() : normalizeFillColor(hex);
+    if (!palette) return;
+    if (!normalized) {
+      if (!silent) showPaletteMessage(msg("selectColorToAdd"), "info");
+      return;
+    }
 
     if (palette.colors.includes(normalized)) {
       if (!silent) showPaletteMessage(msg("colorAlreadyExists"), "info");
@@ -154,7 +164,7 @@ export function createUIModule(addon, state, redux, msg, console) {
 
   const updatePaletteColorFromFill = (newHex) => {
     const palette = state.projectPalettes.find((p) => p.id === state.selectedPaletteId);
-    const normalized = sanitizeHex(newHex);
+    const normalized = normalizeFillColor(newHex);
     if (!palette || state.editingPaletteIndex < 0 || !normalized) return;
 
     if (palette.colors.includes(normalized)) {

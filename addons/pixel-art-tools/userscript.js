@@ -21,6 +21,7 @@ export default async function ({ addon, msg, console }) {
   addon.tab.redux.initialize();
   await addon.tab.scratchClassReady();
   await addon.tab.loadScript("/libraries/thirdparty/cs/gif.js");
+  await addon.tab.loadScript("/libraries/thirdparty/cs/tinycolor-min.js");
 
   /** @type {PixelArtState} */
   const state = {

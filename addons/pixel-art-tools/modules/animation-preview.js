@@ -244,7 +244,9 @@ export function createAnimationPreview(addon, state, msg, console) {
     updateFloat();
 
     while (true) {
-      await addon.tab.waitForElement("[class*='paint-editor_mode-selector']", {
+      // Seen elements are shared across this addon's waiters. Watch the canvas
+      // so this loop does not compete with the palette for the mode selector.
+      await addon.tab.waitForElement("[class*='paper-canvas_paper-canvas']", {
         markAsSeen: true,
         reduxEvents: [
           "scratch-gui/navigation/ACTIVATE_TAB",
@@ -254,7 +256,6 @@ export function createAnimationPreview(addon, state, msg, console) {
         reduxCondition: (store) =>
           store.scratchGui.editorTab.activeTabIndex === 1 && !store.scratchGui.mode.isPlayerOnly,
       });
-      addon.tab.appendToSharedSpace({ space: "paintEditorModeSelector", element: panel, order: 2 });
       updateFloat();
       state.enabled ? show() : hide();
     }
